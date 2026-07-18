@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>$RUNNER — the game</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#080B14;
+  --panel:#0E1424;
+  --line:#1E2740;
+  --blue:#1F6FEB;
+  --cyan:#0BC5C5;
+  --cyan-bright:#2DD4D4;
+  --orange:#FF8C42;
+  --text:#E7ECF7;
+  --text-dim:#8C97B4;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{
+  background:var(--bg);color:var(--text);
+  font-family:'JetBrains Mono',monospace;
+  height:100%;
+  display:flex;align-items:center;justify-content:center;
+  overscroll-behavior:none;
+}
+.wrap{width:100%;max-width:760px;padding:20px;}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;}
+.top a{color:var(--text-dim);font-size:13px;text-decoration:none;}
+.top a:hover{color:var(--cyan-bright);}
+.logo{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;}
+.hud{display:flex;gap:18px;font-size:13px;color:var(--text-dim);}
+.hud b{color:var(--cyan-bright);}
+canvas{
+  width:100%;
+  display:block;
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:10px;
+  touch-action:none;
+}
+.hint{
+  text-align:center;margin-top:14px;font-size:12.5px;color:var(--text-dim);
+}
+.hint kbd{
+  background:var(--panel);border:1px solid var(--line);border-radius:4px;
+  padding:2px 7px;color:var(--text);font-size:11.5px;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <a href="index.html">← back to $RUNNER</a>
+    <span class="logo">🏃 $RUNNER — the pending gauntlet</span>
+    <div class="hud"><span>score <b id="score">0</b></span><span>best <b id="best">0</b></span></div>
+  </div>
+  <canvas id="game" width="760" height="280"></canvas>
+  <div class="hint">tap the screen, click, or press <kbd>space</kbd> / <kbd>↑</kbd> to jump. don't hit a pending node.</div>
+</div>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+let W = canvas.width, H = canvas.height;
+function resize(){
+  const rect = canvas.getBoundingClientRect();
+  const scale = window.devicePixelRatio || 1;
+  canvas.width = rect.width * scale;
+  canvas.height = 280 * scale;
+  ctx.setTransform(scale,0,0,scale,0,0);
+  W = rect.width; H = 280;
+}
+window.addEventListener('resize', resize);
+
+const GROUND_Y = 210;
+const GRAVITY = 0.62;
+const JUMP_V = -11.2;
+
+let best = 0;
+try { best = parseInt(localStorage.getItem('runner_best') || '0', 10); } catch(e) {}
+document.getElementById('best').textContent = best;
+
+let state = 'ready'; // ready | playing | over
+let score = 0;
+let speed = 5.2;
+let frame = 0;
+let obstacles = [];
+let particles = [];
+
+const bird = {
+  x: 70, y: GROUND_Y - 34, w: 40, h: 34,
+  vy: 0, onGround: true, wing: 0
+};
+
+function reset(){
+  score = 0; speed = 5.2; frame = 0;
+  obstacles = []; particles = [];
+  bird.y = GROUND_Y - bird.h; bird.vy = 0; bird.onGround = true;
+  state = 'playing';
+}
+
+function jump(){
+  if(state === 'ready'){ reset(); return; }
+  if(state === 'over'){ reset(); return; }
+  if(bird.onGround){
+    bird.vy = JUMP_V;
+    bird.onGround = false;
+  }
+}
+
+window.addEventListener('keydown', e=>{
+  if(e.code === 'Space' || e.code === 'ArrowUp'){ e.preventDefault(); jump(); }
+});
+canvas.addEventListener('pointerdown', e=>{ e.preventDefault(); jump(); });
+document.querySelector('.wrap').addEventListener('pointerdown', e=>{
+  if(e.target === canvas) return;
+});
+
+function spawnObstacle(){
+  const kinds = [
+    { w:22, h:34, color:'hex' },
+    { w:22, h:50, color:'hex' },
+    { w:34, h:24, color:'bar' },
+  ];
+  const k = kinds[Math.floor(Math.random()*kinds.length)];
+  obstacles.push({
+    x: W + 20, y: GROUND_Y - k.h, w: k.w, h: k.h, type: k.color, passed:false
+  });
+}
+
+function drawGround(){
+  ctx.strokeStyle = '#1E2740';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, GROUND_Y);
+  ctx.lineTo(W, GROUND_Y);
+  ctx.stroke();
+
+  ctx.fillStyle = '#141B31';
+  const dashW = 14, gap = 18;
+  let off = (frame * speed) % (dashW+gap);
+  for(let x = -off; x < W; x += dashW+gap){
+    ctx.fillRect(x, GROUND_Y+1, dashW, 2);
+  }
+}
+
+function drawBird(){
+  const x = bird.x, y = bird.y, w = bird.w, h = bird.h;
+  ctx.save();
+  ctx.translate(x, y);
+
+  // tail
+  ctx.fillStyle = '#0BC5C5';
+  ctx.beginPath();
+  ctx.moveTo(2, h*0.35);
+  ctx.lineTo(-14, h*0.15);
+  ctx.lineTo(-14, h*0.55);
+  ctx.closePath();
+  ctx.fill();
+
+  // body
+  ctx.fillStyle = '#1F6FEB';
+  ctx.beginPath();
+  ctx.ellipse(w*0.42, h*0.5, w*0.42, h*0.42, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // wing (flaps)
+  bird.wing += 0.35;
+  const wingLift = bird.onGround ? Math.sin(bird.wing)*4 : -6;
+  ctx.fillStyle = '#2DD4D4';
+  ctx.beginPath();
+  ctx.ellipse(w*0.36, h*0.42 + wingLift*0.3, w*0.24, h*0.2, -0.3, 0, Math.PI*2);
+  ctx.fill();
+
+  // head
+  ctx.fillStyle = '#1F6FEB';
+  ctx.beginPath();
+  ctx.arc(w*0.82, h*0.28, h*0.26, 0, Math.PI*2);
+  ctx.fill();
+
+  // beak
+  ctx.fillStyle = '#FF8C42';
+  ctx.beginPath();
+  ctx.moveTo(w*0.98, h*0.24);
+  ctx.lineTo(w*1.22, h*0.3);
+  ctx.lineTo(w*0.98, h*0.36);
+  ctx.closePath();
+  ctx.fill();
+
+  // eye
+  ctx.fillStyle = '#080B14';
+  ctx.beginPath();
+  ctx.arc(w*0.88, h*0.22, 2.2, 0, Math.PI*2);
+  ctx.fill();
+
+  // legs
+  ctx.strokeStyle = '#0BC5C5';
+  ctx.lineWidth = 3;
+  const legPhase = bird.onGround ? Math.sin(frame*0.5) : 0;
+  ctx.beginPath();
+  ctx.moveTo(w*0.35, h*0.88); ctx.lineTo(w*0.35 + legPhase*4, h+6);
+  ctx.moveTo(w*0.55, h*0.88); ctx.lineTo(w*0.55 - legPhase*4, h+6);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+function drawObstacle(o){
+  ctx.save();
+  ctx.translate(o.x, o.y);
+  if(o.type === 'hex'){
+    ctx.strokeStyle = '#FF8C42';
+    ctx.fillStyle = 'rgba(255,140,66,0.12)';
+    ctx.lineWidth = 2;
+    const cx = o.w/2, cy = o.h/2, r = o.w/2;
+    ctx.beginPath();
+    for(let i=0;i<6;i++){
+      const ang = Math.PI/3*i - Math.PI/2;
+      const px = cx + r*Math.cos(ang), py = cy + r*Math.sin(ang)*(o.h/o.w);
+      if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+    }
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+  } else {
+    ctx.strokeStyle = '#0BC5C5';
+    ctx.fillStyle = 'rgba(11,197,197,0.12)';
+    ctx.lineWidth = 2;
+    ctx.fillRect(0,0,o.w,o.h);
+    ctx.strokeRect(0,0,o.w,o.h);
+  }
+  ctx.restore();
+}
+
+function collide(a,b){
+  const pad = 6;
+  return a.x+pad < b.x+b.w && a.x+a.w-pad > b.x && a.y+pad < b.y+b.h && a.y+a.h-pad > b.y;
+}
+
+function drawRingBg(){
+  ctx.save();
+  ctx.globalAlpha = 0.14;
+  ctx.strokeStyle = '#2DD4D4';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.ellipse(W*0.82, 70, 90, 32, -0.3, 0, Math.PI*2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function loop(){
+  ctx.clearRect(0,0,W,H);
+  drawRingBg();
+  drawGround();
+
+  if(state === 'playing'){
+    frame++;
+    speed = 5.2 + Math.min(score, 600) * 0.006;
+
+    bird.vy += GRAVITY;
+    bird.y += bird.vy;
+    if(bird.y >= GROUND_Y - bird.h){
+      bird.y = GROUND_Y - bird.h;
+      bird.vy = 0;
+      bird.onGround = true;
+    }
+
+    if(frame % Math.max(38, Math.floor(70 - speed*4)) === 0){
+      spawnObstacle();
+    }
+
+    for(const o of obstacles){
+      o.x -= speed;
+      if(!o.passed && o.x + o.w < bird.x){ o.passed = true; score += 10; }
+    }
+    obstacles = obstacles.filter(o => o.x + o.w > -10);
+
+    for(const o of obstacles){
+      if(collide(bird, o)){
+        state = 'over';
+        if(score > best){
+          best = score;
+          try{ localStorage.setItem('runner_best', String(best)); }catch(e){}
+          document.getElementById('best').textContent = best;
+        }
+      }
+    }
+
+    document.getElementById('score').textContent = score;
+  }
+
+  drawBird();
+  for(const o of obstacles) drawObstacle(o);
+
+  if(state === 'ready'){
+    ctx.fillStyle = 'rgba(8,11,20,0.55)';
+    ctx.fillRect(0,0,W,H);
+    ctx.fillStyle = '#E7ECF7';
+    ctx.font = "700 20px 'Space Grotesk', sans-serif";
+    ctx.textAlign = 'center';
+    ctx.fillText('tap / click / space to start running', W/2, H/2 - 6);
+    ctx.font = "13px 'JetBrains Mono', monospace";
+    ctx.fillStyle = '#8C97B4';
+    ctx.fillText('dodge the pending nodes', W/2, H/2 + 20);
+  }
+
+  if(state === 'over'){
+    ctx.fillStyle = 'rgba(8,11,20,0.65)';
+    ctx.fillRect(0,0,W,H);
+    ctx.fillStyle = '#FF8C42';
+    ctx.font = "700 22px 'Space Grotesk', sans-serif";
+    ctx.textAlign = 'center';
+    ctx.fillText('caught by a pending node', W/2, H/2 - 14);
+    ctx.fillStyle = '#E7ECF7';
+    ctx.font = "14px 'JetBrains Mono', monospace";
+    ctx.fillText('score ' + score + '   ·   best ' + best, W/2, H/2 + 12);
+    ctx.fillStyle = '#8C97B4';
+    ctx.font = "12.5px 'JetBrains Mono', monospace";
+    ctx.fillText('tap / click / space to try again', W/2, H/2 + 36);
+  }
+
+  requestAnimationFrame(loop);
+}
+
+resize();
+loop();
+</script>
+</body>
+</html>
