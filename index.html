@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>$RUNNER — pay 0.1 USDC, dodge the pending nodes</title>
+<title>$RUNNER — pay 0.1 USDC, dodge the cacti</title>
 <meta name="description" content="Arc-Runner. Connect a wallet on Arc Testnet, pay 0.1 USDC, and run.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -159,7 +159,7 @@ canvas{
   </div>
 
   <div class="hint">
-    <kbd>space</kbd> / <kbd>↑</kbd> / tap to jump once a run has started · dodge the pending nodes<br>
+    <kbd>space</kbd> / <kbd>↑</kbd> / tap to jump once a run has started · dodge the cacti<br>
     need test USDC? get some free from the <a href="https://faucet.circle.com" target="_blank" rel="noopener">Circle faucet</a> first.
   </div>
 
@@ -168,7 +168,7 @@ canvas{
       <img src="mascot.svg" alt="Arc-Runner mascot" class="hero-img">
       <div class="about-copy">
         <h2>$RUNNER</h2>
-        <p>A meme bird that got burned on-chain before the network it's running toward was even confirmed live. Every run costs 0.1 test USDC — dodge the pending nodes, beat your best score.</p>
+        <p>A meme bird that got burned on-chain before the network it's running toward was even confirmed live. Every run costs 0.1 test USDC — dodge the cacti, beat your best score.</p>
       </div>
     </div>
 
@@ -410,10 +410,89 @@ window.addEventListener('keydown', e=>{
 });
 canvas.addEventListener('pointerdown', e=>{ e.preventDefault(); jump(); });
 
+// --- CACTUS TYPES ---
+const CACTUS_TYPES = [
+  { w: 20, h: 34, label: 'small' },
+  { w: 28, h: 48, label: 'medium' },
+  { w: 36, h: 62, label: 'large' }
+];
+
 function spawnObstacle(){
-  const kinds = [{w:22,h:34},{w:22,h:50},{w:34,h:24}];
-  const k = kinds[Math.floor(Math.random()*kinds.length)];
-  obstacles.push({ x: W+20, y: GROUND_Y-k.h, w:k.w, h:k.h, passed:false });
+  const type = CACTUS_TYPES[Math.floor(Math.random() * CACTUS_TYPES.length)];
+  obstacles.push({
+    x: W + 20,
+    y: GROUND_Y - type.h,
+    w: type.w,
+    h: type.h,
+    passed: false,
+    type: type.label
+  });
+}
+
+// --- DRAW A CACTUS WITH CANVAS ---
+function drawCactus(ctx, x, y, w, h) {
+  const cx = x + w/2;
+  const bottom = y + h;
+  const bodyW = w * 0.5;
+  const bodyH = h * 0.7;
+
+  // pot
+  ctx.fillStyle = '#8B6B4F';
+  ctx.fillRect(cx - w*0.4, bottom - 6, w*0.8, 6);
+  ctx.fillStyle = '#A67B5B';
+  ctx.fillRect(cx - w*0.3, bottom - 3, w*0.6, 3);
+
+  // main body (ellipse)
+  ctx.fillStyle = '#2D8A4E';
+  ctx.beginPath();
+  ctx.ellipse(cx, bottom - bodyH*0.4 - 4, bodyW*0.5, bodyH*0.5, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.fillStyle = '#3AA85E';
+  ctx.beginPath();
+  ctx.ellipse(cx, bottom - bodyH*0.5 - 4, bodyW*0.4, bodyH*0.45, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // arms (two)
+  const armY = bottom - bodyH*0.6 - 4;
+  ctx.fillStyle = '#2D8A4E';
+  // left arm
+  ctx.beginPath();
+  ctx.ellipse(cx - bodyW*0.6, armY, bodyW*0.25, bodyH*0.15, -0.3, 0, Math.PI*2);
+  ctx.fill();
+  // right arm
+  ctx.beginPath();
+  ctx.ellipse(cx + bodyW*0.6, armY, bodyW*0.25, bodyH*0.15, 0.3, 0, Math.PI*2);
+  ctx.fill();
+
+  // if large, add a top arm
+  if (w > 30) {
+    ctx.fillStyle = '#2D8A4E';
+    ctx.beginPath();
+    ctx.ellipse(cx, bottom - bodyH*0.85 - 4, bodyW*0.2, bodyH*0.12, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = '#3AA85E';
+    ctx.beginPath();
+    ctx.ellipse(cx, bottom - bodyH*0.9 - 4, bodyW*0.15, bodyH*0.1, 0, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  // spines (little dots)
+  ctx.fillStyle = '#1E6B3A';
+  for (let i=0; i<6; i++) {
+    const angle = (i/6)*Math.PI*2 + 0.2;
+    const dist = bodyW*0.45;
+    const sx = cx + Math.cos(angle)*dist;
+    const sy = (bottom - bodyH*0.5 - 4) + Math.sin(angle)*dist*0.4;
+    ctx.beginPath();
+    ctx.arc(sx, sy, 1.5, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  // highlight
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  ctx.beginPath();
+  ctx.ellipse(cx - bodyW*0.15, bottom - bodyH*0.4 - 4, bodyW*0.15, bodyH*0.3, -0.2, 0, Math.PI*2);
+  ctx.fill();
 }
 
 function drawGround(){
@@ -441,17 +520,7 @@ function drawBird(){
 }
 
 function drawObstacle(o){
-  ctx.save(); ctx.translate(o.x, o.y);
-  ctx.strokeStyle = '#FF8C42'; ctx.fillStyle = 'rgba(255,140,66,0.12)'; ctx.lineWidth = 2;
-  const cx=o.w/2, cy=o.h/2, r=o.w/2;
-  ctx.beginPath();
-  for(let i=0;i<6;i++){
-    const ang = Math.PI/3*i - Math.PI/2;
-    const px = cx + r*Math.cos(ang), py = cy + r*Math.sin(ang)*(o.h/o.w);
-    if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
-  }
-  ctx.closePath(); ctx.fill(); ctx.stroke();
-  ctx.restore();
+  drawCactus(ctx, o.x, o.y, o.w, o.h);
 }
 
 function collide(a,b){
@@ -485,7 +554,7 @@ function loop(){
           try{ localStorage.setItem('runner_best', String(best)); }catch(e){}
           document.getElementById('best').textContent = best;
         }
-        showPayGate('caught by a pending node', 'score ' + score + ' · best ' + best + '. Pay another 0.1 USDC to keep running.');
+        showPayGate('caught by a cactus!', 'score ' + score + ' · best ' + best + '. Pay another 0.1 USDC to keep running.');
       }
     }
     document.getElementById('score').textContent = score;
