@@ -1,143 +1,872 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>$RUNNER — Arc Testnet</title>
-<style>
-  /* Aynı CSS'yi yukarıdaki orijinal koddan kopyala (kısaca) */
-  :root { --bg:#080B14; --panel:#0E1424; --line:#1E2740; --blue:#1F6FEB; --cyan:#0BC5C5; --text:#E7ECF7; }
-  body { background:var(--bg); color:var(--text); font-family:'JetBrains Mono',monospace; display:flex; flex-direction:column; align-items:center; padding:20px; }
-  .wrap { max-width:780px; width:100%; }
-  canvas { width:100%; max-width:760px; background:#0E1424; border:1px solid #1E2740; border-radius:12px; display:block; }
-  .hud { position:absolute; top:12px; left:12px; right:12px; display:flex; justify-content:space-between; font-size:13px; color:#8C97B4; pointer-events:none; }
-  .hud b { color:#2DD4D4; }
-  .overlay { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; text-align:center; background:rgba(8,11,20,0.75); border-radius:12px; }
-</style>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>$RUNNER — pay 0.1 USDC, dodge the cacti</title>
+    <meta name="description" content="Arc-Runner. Connect a wallet on Arc Testnet, pay 0.1 USDC, and run.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #080B14;
+            --panel: #0E1424;
+            --line: #1E2740;
+            --blue: #1F6FEB;
+            --cyan: #0BC5C5;
+            --cyan-bright: #2DD4D4;
+            --orange: #FF8C42;
+            --red: #FF5C5C;
+            --text: #E7ECF7;
+            --text-dim: #8C97B4;
+            --cactus-green: #2D8A4E;
+            --cactus-dark: #1E6B3A;
+        }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        html,
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+            min-height: 100%;
+            overscroll-behavior: none;
+        }
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 18px 16px 40px;
+        }
+        .wrap {
+            width: 100%;
+            max-width: 780px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 700;
+            font-size: 16px;
+        }
+        .logo img {
+            width: 30px;
+            height: 30px;
+            border-radius: 7px;
+            object-fit: cover;
+            border: 1px solid var(--line);
+        }
+
+        .wallet-box {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .btn {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            font-size: 13px;
+            padding: 10px 18px;
+            border-radius: 999px;
+            border: none;
+            cursor: pointer;
+            transition: filter 0.15s, transform 0.1s;
+        }
+        .btn:active {
+            transform: scale(0.97);
+        }
+        .btn-primary {
+            background: linear-gradient(90deg, var(--blue), var(--cyan));
+            color: #04101f;
+        }
+        .btn-primary:hover {
+            filter: brightness(1.1);
+        }
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            filter: none;
+        }
+        .pill {
+            font-size: 12px;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            padding: 8px 14px;
+            border-radius: 999px;
+            color: var(--text-dim);
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+        .pill .dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #5B6584;
+        }
+        .pill.ok .dot {
+            background: var(--cyan-bright);
+        }
+        .pill.warn .dot {
+            background: var(--orange);
+        }
+
+        .status-line {
+            font-size: 12.5px;
+            color: var(--text-dim);
+            margin-bottom: 14px;
+            min-height: 18px;
+        }
+        .status-line.err {
+            color: var(--red);
+        }
+        .status-line.ok {
+            color: var(--cyan-bright);
+        }
+
+        .stage {
+            position: relative;
+        }
+        canvas {
+            width: 100%;
+            display: block;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            touch-action: none;
+        }
+        .hud {
+            position: absolute;
+            top: 14px;
+            left: 14px;
+            right: 14px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 12.5px;
+            color: var(--text-dim);
+            pointer-events: none;
+        }
+        .hud b {
+            color: var(--cyan-bright);
+        }
+
+        .overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            text-align: center;
+            background: rgba(8, 11, 20, 0.78);
+            border-radius: 12px;
+            padding: 20px;
+            backdrop-filter: blur(4px);
+        }
+        .overlay h2 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 20px;
+        }
+        .overlay p {
+            font-size: 13px;
+            color: var(--text-dim);
+            max-width: 380px;
+            line-height: 1.6;
+        }
+        .overlay .btn {
+            margin-top: 4px;
+        }
+
+        .hint {
+            text-align: center;
+            margin-top: 16px;
+            font-size: 12px;
+            color: var(--text-dim);
+            line-height: 1.7;
+        }
+        .hint kbd {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            padding: 2px 7px;
+            color: var(--text);
+            font-size: 11px;
+        }
+        .hint a {
+            color: var(--cyan-bright);
+            text-decoration: none;
+        }
+        .hint a:hover {
+            text-decoration: underline;
+        }
+
+        .disc {
+            margin-top: 22px;
+            text-align: center;
+            font-size: 11px;
+            color: #5B6584;
+            max-width: 600px;
+            line-height: 1.7;
+        }
+        .disc strong {
+            color: var(--text-dim);
+        }
+
+        /* cactus prompt section */
+        .prompt-section {
+            margin-top: 32px;
+            padding: 20px 18px;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            max-width: 100%;
+        }
+        .prompt-section h3 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 15px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .prompt-section h3 span {
+            font-size: 18px;
+        }
+        .prompt-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+        }
+        .prompt-card {
+            background: var(--bg);
+            border-radius: 8px;
+            padding: 14px 12px;
+            border: 1px solid var(--line);
+            text-align: center;
+        }
+        .prompt-card .size-label {
+            font-weight: 700;
+            color: var(--cyan-bright);
+            font-size: 13px;
+            display: block;
+            margin-bottom: 4px;
+        }
+        .prompt-card .dim {
+            font-size: 11px;
+            color: var(--text-dim);
+            display: block;
+            margin-bottom: 8px;
+        }
+        .prompt-card code {
+            font-size: 10.5px;
+            background: var(--panel);
+            padding: 4px 8px;
+            border-radius: 4px;
+            display: block;
+            word-break: break-word;
+            color: var(--text);
+            border: 1px solid #1a2338;
+            text-align: left;
+            line-height: 1.5;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .prompt-card .copy-btn {
+            margin-top: 8px;
+            font-size: 10px;
+            padding: 4px 12px;
+            border-radius: 999px;
+            background: var(--line);
+            color: var(--text);
+            border: none;
+            cursor: pointer;
+            font-family: 'JetBrains Mono', monospace;
+            transition: background 0.15s;
+        }
+        .prompt-card .copy-btn:hover {
+            background: #2a3655;
+        }
+
+        @media (max-width: 600px) {
+            .prompt-grid {
+                grid-template-columns: 1fr;
+            }
+            .logo {
+                font-size: 14px;
+            }
+            .btn {
+                font-size: 11px;
+                padding: 8px 14px;
+            }
+            .pill {
+                font-size: 10px;
+                padding: 6px 10px;
+            }
+        }
+    </style>
 </head>
 <body>
-<div class="wrap">
-  <h2 style="margin-bottom:8px;">$RUNNER — Arc Testnet</h2>
-  <div style="position:relative; max-width:760px;">
-    <canvas id="game" width="760" height="280"></canvas>
-    <div class="hud">
-      <span>score <b id="score">0</b></span>
-      <span>best <b id="best">0</b></span>
+    <div class="wrap">
+
+        <header>
+            <div class="logo"><img src="mascot.jpg" alt="" id="mascotLogo"> $RUNNER</div>
+            <div class="wallet-box">
+                <span class="pill" id="netPill"><span class="dot"></span><span id="netLabel">not connected</span></span>
+                <button class="btn btn-primary" id="connectBtn">connect wallet</button>
+            </div>
+        </header>
+
+        <div class="status-line" id="statusLine">connect a wallet to play — costs 0.1 USDC per run, on Arc Testnet.</div>
+
+        <div class="stage">
+            <canvas id="game" width="760" height="280"></canvas>
+            <div class="hud">
+                <span>score <b id="score">0</b></span>
+                <span>best <b id="best">0</b></span>
+            </div>
+
+            <div class="overlay" id="gateOverlay">
+                <h2>🌵 connect wallet to run</h2>
+                <p>$RUNNER plays on Arc Testnet. Connect a wallet, switch networks if asked, then pay 0.1 test USDC per run.<br>Dodge the cacti!</p>
+                <button class="btn btn-primary" id="gateConnectBtn">connect wallet</button>
+            </div>
+        </div>
+
+        <div class="hint">
+            <kbd>space</kbd> / <kbd>↑</kbd> / tap to jump · dodge the cacti<br>
+            need test USDC? get some from the <a href="https://faucet.circle.com" target="_blank" rel="noopener">Circle faucet</a>.
+        </div>
+
+        <!-- CACTUS PROMPT SECTION -->
+        <div class="prompt-section" id="promptSection">
+            <h3><span>🌵</span> generate your cactus sprites</h3>
+            <p style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">
+                Use these prompts with any AI image generator (DALL·E, Midjourney, Stable Diffusion) to create cactus sprites.
+                Save them as <strong>cactus_small.png</strong>, <strong>cactus_medium.png</strong>, <strong>cactus_large.png</strong>
+                in the same folder as this page.
+            </p>
+            <div class="prompt-grid">
+                <div class="prompt-card">
+                    <span class="size-label">🌱 small</span>
+                    <span class="dim">~ 36×44 px · 2 arms</span>
+                    <code id="promptSmall">pixel art, small cactus with two arms, round pot, desert style, flat vector, isolated on transparent background, 40x50 pixels, green tones, simple shapes, cute, no background</code>
+                    <button class="copy-btn" data-target="promptSmall">copy</button>
+                </div>
+                <div class="prompt-card">
+                    <span class="size-label">🌵 medium</span>
+                    <span class="dim">~ 50×64 px · 2 arms</span>
+                    <code id="promptMedium">pixel art, medium cactus with two arms, round pot, desert style, flat vector, isolated on transparent background, 56x70 pixels, green tones, simple shapes, no background</code>
+                    <button class="copy-btn" data-target="promptMedium">copy</button>
+                </div>
+                <div class="prompt-card">
+                    <span class="size-label">🌵 large</span>
+                    <span class="dim">~ 64×84 px · 3 arms</span>
+                    <code id="promptLarge">pixel art, large tall cactus with three arms, round pot, desert style, flat vector, isolated on transparent background, 72x90 pixels, green tones, simple shapes, no background</code>
+                    <button class="copy-btn" data-target="promptLarge">copy</button>
+                </div>
+            </div>
+            <p style="font-size:11px;color:#5B6584;margin-top:12px;">
+                💡 For best results, use a transparent PNG. The game will scale them automatically.
+                If you don't have images, the game will draw placeholder cacti.
+            </p>
+        </div>
+
+        <p class="disc">Arc Testnet only — test funds, zero real value. This is not the mainnet version. $RUNNER is a meme project made for fun, not affiliated with Circle or Arc. <strong>cactus sprites</strong> generated separately.</p>
     </div>
-    <div class="overlay" id="overlay">
-      <h2>connect wallet to play</h2>
-      <button onclick="connectWallet()" style="padding:12px 28px; border-radius:999px; background:linear-gradient(#1F6FEB,#0BC5C5); color:#04101f; border:none; font-weight:700;">Connect Wallet & Pay 0.1 USDC</button>
-    </div>
-  </div>
-</div>
 
-<script>
-// === OYUN KODU (Kaktüs Engel + Bu Maskot) ===
-const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d');
-const mascot = new Image();
-mascot.src = 'mascot.jpg';   // ← Bu görseli kullan
+    <script>
+        /* ============ CONFIG ============ */
+        const ARC_TESTNET = {
+            chainIdHex: '0x4cef52', // 5042002
+            chainIdDec: 5042002,
+            chainName: 'Arc Testnet',
+            nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
+            rpcUrls: ['https://rpc.testnet.arc.network'],
+            blockExplorerUrls: ['https://testnet.arcscan.app'],
+        };
 
-let W = 760, H = 280;
-let score = 0, best = localStorage.getItem('runner_best') || 0;
-let gameState = 'locked';
-let frame = 0, speed = 5;
-let obstacles = [];
-const bird = { x: 80, y: 180, w: 52, h: 44, vy: 0, onGround: true };
-const GROUND_Y = 220;
+        // ⚠️ REPLACE THIS with your own wallet address before deploying —
+        // this is where the 0.1 USDC play-fee gets sent.
+        const GAME_TREASURY_ADDRESS = '0x59B011da84a4aaf06EEE9E52BE5537731ED276C1';
 
-function resetGame() {
-  score = 0; speed = 5; frame = 0; obstacles = [];
-  bird.y = GROUND_Y - bird.h; bird.vy = 0; bird.onGround = true;
-}
+        const PLAY_FEE_USDC = 0.1;
+        const PLAY_FEE_WEI_HEX = '0x' + BigInt(Math.round(PLAY_FEE_USDC * 1e18)).toString(16);
 
-function jump() {
-  if (gameState === 'ready' || gameState === 'playing') {
-    if (bird.onGround) { bird.vy = -11.5; bird.onGround = false; }
-  }
-  if (gameState === 'over') {
-    document.getElementById('overlay').style.display = 'flex';
-  }
-}
+        /* ============ WALLET STATE ============ */
+        let account = null;
+        let onCorrectChain = false;
 
-function spawnCactus() {
-  obstacles.push({ x: W + 30, type: 'cactus' });
-}
+        const connectBtn = document.getElementById('connectBtn');
+        const gateConnectBtn = document.getElementById('gateConnectBtn');
+        const netPill = document.getElementById('netPill');
+        const netLabel = document.getElementById('netLabel');
+        const statusLine = document.getElementById('statusLine');
+        const gateOverlay = document.getElementById('gateOverlay');
 
-function drawCactus(o) {
-  ctx.fillStyle = '#4ade80';
-  ctx.strokeStyle = '#166534';
-  ctx.lineWidth = 3;
+        function setStatus(msg, kind) {
+            statusLine.textContent = msg;
+            statusLine.className = 'status-line' + (kind ? ' ' + kind : '');
+        }
 
-  // Ana gövde
-  ctx.fillRect(o.x, o.y - 50, 18, 55);
-  ctx.strokeRect(o.x, o.y - 50, 18, 55);
+        function short(addr) { return addr.slice(0, 6) + '…' + addr.slice(-4); }
 
-  // Sol kol
-  ctx.fillRect(o.x - 12, o.y - 35, 14, 8);
-  ctx.strokeRect(o.x - 12, o.y - 35, 14, 8);
+        async function ensureArcTestnet() {
+            const currentChain = await window.ethereum.request({ method: 'eth_chainId' });
+            if (currentChain === ARC_TESTNET.chainIdHex) { return true; }
+            try {
+                await window.ethereum.request({
+                    method: 'wallet_switchEthereumChain',
+                    params: [{ chainId: ARC_TESTNET.chainIdHex }],
+                });
+                return true;
+            } catch (switchErr) {
+                if (switchErr.code === 4902) {
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_addEthereumChain',
+                            params: [{
+                                chainId: ARC_TESTNET.chainIdHex,
+                                chainName: ARC_TESTNET.chainName,
+                                nativeCurrency: ARC_TESTNET.nativeCurrency,
+                                rpcUrls: ARC_TESTNET.rpcUrls,
+                                blockExplorerUrls: ARC_TESTNET.blockExplorerUrls,
+                            }],
+                        });
+                        return true;
+                    } catch (addErr) {
+                        setStatus('Could not add Arc Testnet to your wallet: ' + (addErr.message || addErr), 'err');
+                        return false;
+                    }
+                }
+                setStatus('Please switch to Arc Testnet manually to continue.', 'err');
+                return false;
+            }
+        }
 
-  // Sağ kol
-  ctx.fillRect(o.x + 16, o.y - 42, 14, 8);
-  ctx.strokeRect(o.x + 16, o.y - 42, 14, 8);
-}
+        async function connectWallet() {
+            if (!window.ethereum) {
+                setStatus('No wallet found. Install MetaMask or open this page inside a wallet browser.', 'err');
+                return;
+            }
+            try {
+                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                account = accounts[0];
+                connectBtn.textContent = short(account);
+                connectBtn.disabled = true;
 
-function drawBird() {
-  const bob = bird.onGround ? Math.sin(frame * 0.35) * 1.5 : 0;
-  ctx.save();
-  ctx.translate(bird.x + bird.w/2, bird.y + bird.h/2 + bob);
-  if (mascot.complete) {
-    ctx.drawImage(mascot, -bird.w/2, -bird.h/2, bird.w, bird.h);
-  } else {
-    ctx.fillStyle = '#1F6FEB';
-    ctx.fillRect(-bird.w/2, -bird.h/2, bird.w, bird.h);
-  }
-  ctx.restore();
-}
+                const ok = await ensureArcTestnet();
+                onCorrectChain = ok;
+                updateNetPill();
 
-function loop() {
-  ctx.clearRect(0, 0, W, H);
+                if (ok) {
+                    setStatus('Wallet connected on Arc Testnet. Pay ' + PLAY_FEE_USDC + ' USDC to start a run.', 'ok');
+                    showPayGate('🌵 ready when you are', 'One run per payment. Test USDC only — get some from the Circle faucet if your balance is empty.');
+                }
+            } catch (e) {
+                setStatus('Connection failed: ' + (e.message || e), 'err');
+            }
+        }
 
-  // Zemin
-  ctx.fillStyle = '#141B31';
-  ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
+        function showPayGate(title, desc) {
+            gateOverlay.style.display = 'flex';
+            gateOverlay.innerHTML = '';
+            const h2 = document.createElement('h2');
+            h2.textContent = title;
+            const p = document.createElement('p');
+            p.textContent = desc;
+            const payBtn = document.createElement('button');
+            payBtn.className = 'btn btn-primary';
+            payBtn.textContent = 'pay ' + PLAY_FEE_USDC + ' USDC — run';
+            payBtn.onclick = payToPlay;
+            gateOverlay.appendChild(h2);
+            gateOverlay.appendChild(p);
+            gateOverlay.appendChild(payBtn);
+        }
 
-  if (gameState === 'playing') {
-    frame++;
-    speed = 5 + Math.min(score / 80, 4);
-    bird.vy += 0.65;
-    bird.y += bird.vy;
-    if (bird.y >= GROUND_Y - bird.h) { bird.y = GROUND_Y - bird.h; bird.vy = 0; bird.onGround = true; }
+        function updateNetPill() {
+            if (!account) {
+                netPill.className = 'pill';
+                netLabel.textContent = 'not connected';
+            } else if (onCorrectChain) {
+                netPill.className = 'pill ok';
+                netLabel.textContent = 'Arc Testnet · ' + short(account);
+            } else {
+                netPill.className = 'pill warn';
+                netLabel.textContent = 'wrong network';
+            }
+        }
 
-    if (frame % 48 === 0) spawnCactus();
+        async function payToPlay() {
+            if (!account || !onCorrectChain) { setStatus('Connect and switch to Arc Testnet first.', 'err'); return; }
+            setStatus('Confirm the 0.1 USDC payment in your wallet…', null);
+            try {
+                const txHash = await window.ethereum.request({
+                    method: 'eth_sendTransaction',
+                    params: [{
+                        from: account,
+                        to: GAME_TREASURY_ADDRESS,
+                        value: PLAY_FEE_WEI_HEX,
+                    }],
+                });
+                setStatus('Payment sent (' + short(txHash) + '), waiting for confirmation…', null);
+                await waitForReceipt(txHash);
+                setStatus('Payment confirmed. Run unlocked — tap the game to jump.', 'ok');
+                gateOverlay.style.display = 'none';
+                resetGame();
+                gameState = 'ready';
+            } catch (e) {
+                setStatus('Payment failed or was rejected: ' + (e.message || e), 'err');
+            }
+        }
 
-    obstacles.forEach(o => o.x -= speed);
-    obstacles = obstacles.filter(o => o.x > -40);
+        async function waitForReceipt(txHash) {
+            for (let i = 0; i < 40; i++) {
+                const receipt = await window.ethereum.request({
+                    method: 'eth_getTransactionReceipt',
+                    params: [txHash],
+                });
+                if (receipt) return receipt;
+                await new Promise(r => setTimeout(r, 3000));
+            }
+            throw new Error('timed out waiting for confirmation, check the explorer');
+        }
 
-    // Çarpışma
-    obstacles.forEach(o => {
-      if (bird.x < o.x + 22 && bird.x + bird.w > o.x && bird.y < o.y && bird.y + bird.h > o.y - 50) {
-        gameState = 'over';
-        if (score > best) { best = score; localStorage.setItem('runner_best', best); }
-      }
-    });
+        connectBtn.addEventListener('click', connectWallet);
+        gateConnectBtn.addEventListener('click', connectWallet);
 
-    document.getElementById('score').textContent = score;
-  }
+        if (window.ethereum) {
+            window.ethereum.on && window.ethereum.on('chainChanged', () => { location.reload(); });
+            window.ethereum.on && window.ethereum.on('accountsChanged', () => { location.reload(); });
+        }
 
-  drawBird();
-  obstacles.forEach(o => drawCactus(o));
+        /* ============ COPY PROMPTS ============ */
+        document.querySelectorAll('.copy-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const targetId = btn.getAttribute('data-target');
+                const el = document.getElementById(targetId);
+                if (el) {
+                    navigator.clipboard.writeText(el.textContent.trim()).then(() => {
+                        const orig = btn.textContent;
+                        btn.textContent = '✓ copied';
+                        setTimeout(() => { btn.textContent = orig; }, 1800);
+                    }).catch(() => {
+                        // fallback
+                        const range = document.createRange();
+                        range.selectNode(el);
+                        window.getSelection().removeAllRanges();
+                        window.getSelection().addRange(range);
+                        document.execCommand('copy');
+                        const orig = btn.textContent;
+                        btn.textContent = '✓ copied';
+                        setTimeout(() => { btn.textContent = orig; }, 1800);
+                    });
+                }
+            });
+        });
 
-  requestAnimationFrame(loop);
-}
+        /* ============ GAME ============ */
+        const canvas = document.getElementById('game');
+        const ctx = canvas.getContext('2d');
 
-// Kontroller
-window.addEventListener('keydown', e => { if (e.code === 'Space' || e.code === 'ArrowUp') jump(); });
-canvas.addEventListener('pointerdown', jump);
+        const mascot = new Image();
+        mascot.src = 'mascot.jpg';
 
-// Başlangıç
-loop();
-document.getElementById('overlay').style.display = 'flex';
-</script>
+        // --- CACTUS IMAGES ---
+        const cactusImages = {
+            small: new Image(),
+            medium: new Image(),
+            large: new Image()
+        };
+        cactusImages.small.src = 'cactus_small.png';
+        cactusImages.medium.src = 'cactus_medium.png';
+        cactusImages.large.src = 'cactus_large.png';
+
+        // track which cactus images have loaded
+        const cactusLoaded = { small: false, medium: false, large: false };
+        cactusImages.small.onload = () => { cactusLoaded.small = true; };
+        cactusImages.medium.onload = () => { cactusLoaded.medium = true; };
+        cactusImages.large.onload = () => { cactusLoaded.large = true; };
+        // fallback: if they never load, we draw them with canvas
+
+        let W = canvas.width,
+            H = canvas.height;
+
+        function resize() {
+            const rect = canvas.getBoundingClientRect();
+            const scale = window.devicePixelRatio || 1;
+            canvas.width = rect.width * scale;
+            canvas.height = 280 * scale;
+            ctx.setTransform(scale, 0, 0, scale, 0, 0);
+            W = rect.width;
+            H = 280;
+        }
+        window.addEventListener('resize', resize);
+
+        const GROUND_Y = 210;
+        const GRAVITY = 0.62;
+        const JUMP_V = -11.2;
+
+        let best = 0;
+        try { best = parseInt(localStorage.getItem('runner_best') || '0', 10); } catch (e) {}
+        document.getElementById('best').textContent = best;
+
+        let gameState = 'locked'; // locked | ready | playing | over
+        let score = 0;
+        let speed = 5.2;
+        let frame = 0;
+        let obstacles = [];
+
+        const bird = { x: 70, y: GROUND_Y - 44, w: 52, h: 44, vy: 0, onGround: true };
+
+        function resetGame() {
+            score = 0;
+            speed = 5.2;
+            frame = 0;
+            obstacles = [];
+            bird.y = GROUND_Y - bird.h;
+            bird.vy = 0;
+            bird.onGround = true;
+            document.getElementById('score').textContent = '0';
+        }
+
+        function jump() {
+            if (gameState === 'ready') { gameState = 'playing'; return; }
+            if (gameState === 'over') {
+                showPayGate('🌵 run again?', 'score ' + score + ' · best ' + best + '. Pay another 0.1 USDC to keep running.');
+                return;
+            }
+            if (gameState === 'playing' && bird.onGround) {
+                bird.vy = JUMP_V;
+                bird.onGround = false;
+            }
+        }
+
+        window.addEventListener('keydown', e => {
+            if (e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault();
+                jump(); }
+        });
+        canvas.addEventListener('pointerdown', e => { e.preventDefault();
+            jump(); });
+
+        // --- CACTUS SIZES ---
+        const CACTUS_TYPES = [
+            { key: 'small', w: 28, h: 38, img: cactusImages.small },
+            { key: 'medium', w: 38, h: 54, img: cactusImages.medium },
+            { key: 'large', w: 48, h: 70, img: cactusImages.large },
+        ];
+
+        function spawnObstacle() {
+            const type = CACTUS_TYPES[Math.floor(Math.random() * CACTUS_TYPES.length)];
+            // randomize width/height a bit for variety
+            const scaleVar = 0.85 + Math.random() * 0.3;
+            const w = Math.round(type.w * scaleVar);
+            const h = Math.round(type.h * scaleVar);
+            obstacles.push({
+                x: W + 20,
+                y: GROUND_Y - h,
+                w: w,
+                h: h,
+                passed: false,
+                type: type.key,
+                img: type.img,
+                loaded: cactusLoaded[type.key],
+                scaleVar: scaleVar
+            });
+        }
+
+        // --- FALLBACK: draw a cactus with canvas ---
+        function drawCactusFallback(ctx, x, y, w, h, type) {
+            const cx = x + w / 2;
+            const by = y + h;
+
+            // pot
+            ctx.fillStyle = '#8B6B4F';
+            ctx.fillRect(cx - w * 0.45, by - 6, w * 0.9, 6);
+            ctx.fillStyle = '#A67B5B';
+            ctx.fillRect(cx - w * 0.35, by - 3, w * 0.7, 3);
+
+            // main body
+            const bodyW = w * 0.5;
+            const bodyH = h * 0.75;
+            ctx.fillStyle = '#2D8A4E';
+            ctx.beginPath();
+            ctx.ellipse(cx, by - bodyH * 0.4 - 6, bodyW * 0.5, bodyH * 0.5, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#3AA85E';
+            ctx.beginPath();
+            ctx.ellipse(cx, by - bodyH * 0.5 - 6, bodyW * 0.4, bodyH * 0.45, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // arms
+            const armY = by - bodyH * 0.6 - 6;
+            ctx.fillStyle = '#2D8A4E';
+            // left arm
+            ctx.beginPath();
+            ctx.ellipse(cx - bodyW * 0.6, armY, bodyW * 0.3, bodyH * 0.2, -0.3, 0, Math.PI * 2);
+            ctx.fill();
+            // right arm
+            ctx.beginPath();
+            ctx.ellipse(cx + bodyW * 0.6, armY, bodyW * 0.3, bodyH * 0.2, 0.3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // if large, add a third arm on top
+            if (type === 'large') {
+                ctx.fillStyle = '#2D8A4E';
+                ctx.beginPath();
+                ctx.ellipse(cx, by - bodyH * 0.85 - 6, bodyW * 0.2, bodyH * 0.15, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#3AA85E';
+                ctx.beginPath();
+                ctx.ellipse(cx, by - bodyH * 0.9 - 6, bodyW * 0.15, bodyH * 0.12, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // spines (little dots)
+            ctx.fillStyle = '#1E6B3A';
+            for (let i = 0; i < 6; i++) {
+                const angle = (i / 6) * Math.PI * 2 + 0.2;
+                const dist = bodyW * 0.45;
+                const sx = cx + Math.cos(angle) * dist;
+                const sy = (by - bodyH * 0.5 - 6) + Math.sin(angle) * dist * 0.4;
+                ctx.beginPath();
+                ctx.arc(sx, sy, 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // highlight
+            ctx.fillStyle = 'rgba(255,255,255,0.08)';
+            ctx.beginPath();
+            ctx.ellipse(cx - bodyW * 0.15, by - bodyH * 0.4 - 6, bodyW * 0.15, bodyH * 0.3, -0.2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function drawGround() {
+            ctx.strokeStyle = '#1E2740';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(0, GROUND_Y);
+            ctx.lineTo(W, GROUND_Y);
+            ctx.stroke();
+            ctx.fillStyle = '#141B31';
+            const dashW = 14,
+                gap = 18;
+            let off = (frame * speed) % (dashW + gap);
+            for (let x = -off; x < W; x += dashW + gap) { ctx.fillRect(x, GROUND_Y + 1, dashW, 2); }
+        }
+
+        function drawBird() {
+            const bob = bird.onGround ? Math.sin(frame * 0.4) * 2 : 0;
+            const tilt = Math.max(-0.25, Math.min(0.35, bird.vy * 0.03));
+            ctx.save();
+            ctx.translate(bird.x + bird.w / 2, bird.y + bird.h / 2 + bob);
+            ctx.rotate(tilt);
+            if (mascot.complete && mascot.naturalWidth) {
+                ctx.drawImage(mascot, -bird.w / 2, -bird.h / 2, bird.w, bird.h);
+            } else {
+                // fallback bird
+                ctx.fillStyle = '#1F6FEB';
+                ctx.fillRect(-bird.w / 2, -bird.h / 2, bird.w, bird.h);
+                ctx.fillStyle = '#2DD4D4';
+                ctx.beginPath();
+                ctx.arc(4, -2, 6, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
+        }
+
+        function drawObstacle(o) {
+            const x = o.x,
+                y = o.y,
+                w = o.w,
+                h = o.h;
+            // if image is loaded, draw it
+            if (o.loaded && o.img && o.img.complete && o.img.naturalWidth) {
+                ctx.drawImage(o.img, x, y, w, h);
+                return;
+            }
+            // fallback: draw with canvas
+            drawCactusFallback(ctx, x, y, w, h, o.type);
+        }
+
+        function collide(a, b) {
+            const pad = 6;
+            return a.x + pad < b.x + b.w && a.x + a.w - pad > b.x &&
+                a.y + pad < b.y + b.h && a.y + a.h - pad > b.y;
+        }
+
+        function loop() {
+            ctx.clearRect(0, 0, W, H);
+            drawGround();
+
+            if (gameState === 'playing') {
+                frame++;
+                speed = 5.2 + Math.min(score, 600) * 0.006;
+                bird.vy += GRAVITY;
+                bird.y += bird.vy;
+                if (bird.y >= GROUND_Y - bird.h) { bird.y = GROUND_Y - bird.h;
+                    bird.vy = 0;
+                    bird.onGround = true; }
+
+                // spawn cacti
+                const spawnRate = Math.max(42, Math.floor(78 - speed * 4.2));
+                if (frame % spawnRate === 0) spawnObstacle();
+
+                for (const o of obstacles) {
+                    o.x -= speed;
+                    if (!o.passed && o.x + o.w < bird.x) { o.passed = true;
+                        score += 10; }
+                }
+                obstacles = obstacles.filter(o => o.x + o.w > -10);
+
+                for (const o of obstacles) {
+                    if (collide(bird, o)) {
+                        gameState = 'over';
+                        if (score > best) {
+                            best = score;
+                            try { localStorage.setItem('runner_best', String(best)); } catch (e) {}
+                            document.getElementById('best').textContent = best;
+                        }
+                        showPayGate('🌵 caught by a cactus!', 'score ' + score + ' · best ' + best + '. Pay another 0.1 USDC to keep running.');
+                    }
+                }
+                document.getElementById('score').textContent = score;
+            }
+
+            drawBird();
+            for (const o of obstacles) drawObstacle(o);
+
+            // draw a small cactus icon in corner as decoration if game is ready
+            if (gameState === 'ready') {
+                ctx.fillStyle = 'rgba(45,138,78,0.15)';
+                ctx.font = '28px sans-serif';
+                ctx.fillText('🌵', W - 44, 44);
+            }
+
+            requestAnimationFrame(loop);
+        }
+
+        resize();
+        loop();
+
+        // if images never load, we still have fallback drawing
+        // show a small hint in console
+        console.log('🌵 $RUNNER — Cactus Runner');
+        console.log('💡 If you want custom cactus sprites, generate them using the prompts above.');
+        console.log('   Save as cactus_small.png, cactus_medium.png, cactus_large.png');
+    </script>
 </body>
 </html>
