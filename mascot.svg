@@ -1,0 +1,111 @@
+<svg width="512" height="512" viewBox="0 0 1220 1220" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="neckGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2196D8"/>
+      <stop offset="100%" stop-color="#22C5B8"/>
+    </linearGradient>
+    <linearGradient id="wingOuterGrad" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1E56C8"/>
+      <stop offset="100%" stop-color="#2AA8D6"/>
+    </linearGradient>
+    <linearGradient id="wingInnerGrad" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2AA0D8"/>
+      <stop offset="100%" stop-color="#3FE0C8"/>
+    </linearGradient>
+    <linearGradient id="headGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E5FCB"/>
+      <stop offset="100%" stop-color="#2C7CDB"/>
+    </linearGradient>
+    <linearGradient id="ringGradOuter" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF9A4D" stop-opacity="0.15"/>
+      <stop offset="35%" stop-color="#FF9A4D"/>
+      <stop offset="100%" stop-color="#FF9A4D" stop-opacity="0.1"/>
+    </linearGradient>
+    <linearGradient id="ringGradMid" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#BFF6EE" stop-opacity="0.1"/>
+      <stop offset="35%" stop-color="#CFFBF4"/>
+      <stop offset="100%" stop-color="#CFFBF4" stop-opacity="0.05"/>
+    </linearGradient>
+    <linearGradient id="ringGradInner" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2FB8E0" stop-opacity="0.1"/>
+      <stop offset="35%" stop-color="#2FB8E0"/>
+      <stop offset="100%" stop-color="#1E6FEB" stop-opacity="0.15"/>
+    </linearGradient>
+    <filter id="softGlow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="8" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- faint constellation background (optional, low opacity so it works over any panel) -->
+  <g opacity="0.14" stroke="#7FDDE0" stroke-width="1.5" fill="#7FDDE0">
+    <circle cx="880" cy="330" r="4"/><circle cx="960" cy="270" r="3"/><circle cx="1010" cy="400" r="3"/>
+    <circle cx="240" cy="900" r="3"/><circle cx="340" cy="980" r="3.5"/><circle cx="180" cy="760" r="3"/>
+    <line x1="880" y1="330" x2="960" y2="270"/><line x1="960" y1="270" x2="1010" y2="400"/>
+    <line x1="240" y1="900" x2="340" y2="980"/><line x1="240" y1="900" x2="180" y2="760"/>
+    <circle cx="610" cy="610" r="330" fill="none" stroke-width="1" opacity="0.5"/>
+    <circle cx="610" cy="610" r="230" fill="none" stroke-width="1" opacity="0.4"/>
+  </g>
+
+  <!-- ===== warp ring (drawn first, sits behind the body) ===== -->
+  <g transform="rotate(-14 610 850)" filter="url(#softGlow)">
+    <ellipse cx="610" cy="850" rx="340" ry="118" fill="none" stroke="url(#ringGradOuter)" stroke-width="26" stroke-linecap="round" pathLength="100" stroke-dasharray="86 14"/>
+    <ellipse cx="610" cy="850" rx="340" ry="118" fill="none" stroke="url(#ringGradMid)" stroke-width="10" stroke-linecap="round" pathLength="100" stroke-dasharray="86 14"/>
+    <ellipse cx="610" cy="838" rx="330" ry="108" fill="none" stroke="url(#ringGradInner)" stroke-width="16" stroke-linecap="round" pathLength="100" stroke-dasharray="80 20"/>
+  </g>
+
+  <!-- ===== tail sweeping into the ring ===== -->
+  <path d="M660 690 C 560 760, 470 830, 400 900 C 460 905, 520 880, 590 830 C 640 795, 665 745, 660 690 Z"
+        fill="url(#wingInnerGrad)"/>
+
+  <!-- ===== wings (layered, swept up-left) ===== -->
+  <path d="M640 640 C 480 600, 330 520, 205 400 C 260 500, 340 560, 430 610 C 500 648, 570 662, 640 660 Z"
+        fill="url(#wingOuterGrad)"/>
+  <path d="M660 660 C 520 600, 400 500, 320 380 C 350 480, 420 560, 510 620 C 570 658, 620 668, 660 660 Z"
+        fill="url(#wingInnerGrad)"/>
+  <g stroke="#123A66" stroke-width="4" opacity="0.35" stroke-linecap="round">
+    <path d="M420 470 C 470 520, 540 560, 610 585" fill="none"/>
+    <path d="M340 420 C 400 480, 470 530, 550 565" fill="none"/>
+  </g>
+
+  <!-- ===== body / neck ===== -->
+  <path d="M690 690 C 640 640, 615 580, 630 520 C 645 450, 690 400, 740 385
+           C 700 440, 685 490, 700 545 C 715 605, 750 645, 705 695 Z"
+        fill="url(#neckGrad)"/>
+
+  <!-- small joint band where wings meet neck -->
+  <ellipse cx="672" cy="660" rx="34" ry="24" fill="#1D4FA6" opacity="0.55"/>
+  <ellipse cx="672" cy="655" rx="26" ry="17" fill="#123a7a" opacity="0.6"/>
+
+  <!-- ===== crest feathers ===== -->
+  <path d="M700 260 C 660 190, 660 130, 700 90 C 715 150, 715 200, 730 250 Z" fill="#1E5FCB"/>
+  <path d="M735 250 C 715 175, 730 110, 780 70 C 775 145, 765 205, 765 255 Z" fill="#2C7CDB"/>
+  <path d="M770 255 C 770 180, 800 125, 850 100 C 825 165, 805 215, 795 260 Z" fill="#3B93E0"/>
+
+  <!-- ===== head ===== -->
+  <circle cx="800" cy="340" r="95" fill="url(#headGrad)"/>
+
+  <!-- beak -->
+  <path d="M865 335 C 930 320, 985 335, 1010 360 C 985 385, 930 395, 865 375 Z" fill="#F5A24B"/>
+  <path d="M866 355 C 915 352, 960 360, 1000 372" fill="none" stroke="#0F1C33" stroke-width="4" stroke-linecap="round" opacity="0.5"/>
+
+  <!-- smile -->
+  <path d="M812 385 C 828 400, 850 402, 868 392" fill="none" stroke="#0F1C33" stroke-width="6" stroke-linecap="round"/>
+
+  <!-- eyes -->
+  <g>
+    <ellipse cx="768" cy="300" rx="34" ry="40" fill="#FBFDFF"/>
+    <ellipse cx="775" cy="304" rx="16" ry="20" fill="#0F1C33"/>
+    <circle cx="781" cy="294" r="6" fill="#FBFDFF"/>
+    <path d="M736 275 C 748 262, 768 260, 782 268" fill="none" stroke="#0F1C33" stroke-width="5" stroke-linecap="round"/>
+  </g>
+  <g>
+    <ellipse cx="838" cy="288" rx="30" ry="36" fill="#FBFDFF"/>
+    <ellipse cx="845" cy="292" rx="14" ry="18" fill="#0F1C33"/>
+    <circle cx="850" cy="282" r="5" fill="#FBFDFF"/>
+    <path d="M810 262 C 822 250, 842 248, 856 256" fill="none" stroke="#0F1C33" stroke-width="5" stroke-linecap="round"/>
+  </g>
+
+  <!-- cheek/highlight -->
+  <ellipse cx="760" cy="360" rx="20" ry="14" fill="#5CB8F0" opacity="0.35"/>
+</svg>
